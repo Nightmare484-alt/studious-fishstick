@@ -1,0 +1,31 @@
+name: build-from-zip
+on: [push, workflow_dispatch]
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Unzip the project
+        run: |
+          ZIP=$(ls *voice-fix*.zip 2>/dev/null | head -1)
+          [ -z "$ZIP" ] && ZIP=$(ls *.zip | head -1)
+          echo "Using $ZIP"
+          unzip -q -o "$ZIP" -d project
+          ROOT=$(dirname "$(find project -name settings.gradle.kts | head -1)")
+          echo "Project root: $ROOT"
+          echo "ROOT=$ROOT" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17 }
+
+      - uses: gradle/actions/setup-gradle@v4
+        with: { gradle-version: 8.10.2 }
+
+      - name: Build APK
+        run: gradle -p "$ROOT" --no-daemon :app:assembleDebug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MayaAI-debug-apk
+          path: project/**/app/build/outputs/apk/debug/app-debug.apk
